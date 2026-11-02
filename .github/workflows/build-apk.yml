@@ -36,13 +36,31 @@ jobs:
         working-directory: src/embyshort
         run: npx expo prebuild --platform android
 
-      - name: Build APK
+      - name: Sign release build with debug key
+        working-directory: src/embyshort/android
+        run: |
+          python3 - <<'PY'
+          import re
+          p = "app/build.gradle"
+          s = open(p).read()
+          if "signingConfig signingConfigs.debug" not in s.split("buildTypes")[-1]:
+              s = s.replace("""release {
+            // Caution! In production, you need to generate your own keystore file.
+            signingConfig signingConfigs.debug""", """release {
+            // Caution! In production, you need to generate your own keystore file.
+            signingConfig signingConfigs.debug""")
+              open(p, "w").write(s)
+          print("done")
+          PY
+          grep -A3 "release {" app/build.gradle | head -8
+
+      - name: Build release APK (bundles JS)
         working-directory: src/embyshort/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - uses: actions/upload-artifact@v4
         with:
           name: embyshort-apk
-          path: src/embyshort/android/app/build/outputs/apk/debug/app-debug.apk
+          path: src/embyshort/android/app/build/outputs/apk/release/app-release.apk
